@@ -126,6 +126,53 @@
       return lower.charAt(0).toUpperCase() + lower.slice(1);
     }
 
+    // 英文短縮形（don't, can'tなど）を非短縮形に展開する関数
+    function expandContractions(text) {
+      const contractionsMap = [
+        { reg: /\bcan['’]t\b/gi, rep: "cannot" },
+        { reg: /\bwon['’]t\b/gi, rep: "will not" },
+        { reg: /\bshan['’]t\b/gi, rep: "shall not" },
+        { reg: /\bn['’]t\b/gi, rep: " not" },
+        { reg: /\bi['’]m\b/gi, rep: "I am" },
+        { reg: /\bhe['’]s\b/gi, rep: "he is" },
+        { reg: /\bshe['’]s\b/gi, rep: "she is" },
+        { reg: /\bit['’]s\b/gi, rep: "it is" },
+        { reg: /\bthat['’]s\b/gi, rep: "that is" },
+        { reg: /\bwhat['’]s\b/gi, rep: "what is" },
+        { reg: /\bwhere['’]s\b/gi, rep: "where is" },
+        { reg: /\bwho['’]s\b/gi, rep: "who is" },
+        { reg: /\bhow['’]s\b/gi, rep: "how is" },
+        { reg: /\byou['’]re\b/gi, rep: "you are" },
+        { reg: /\bwe['’]re\b/gi, rep: "we are" },
+        { reg: /\bthey['’]re\b/gi, rep: "they are" },
+        { reg: /\bi['’]ve\b/gi, rep: "I have" },
+        { reg: /\byou['’]ve\b/gi, rep: "you have" },
+        { reg: /\bwe['’]ve\b/gi, rep: "we have" },
+        { reg: /\bthey['’]ve\b/gi, rep: "they have" },
+        { reg: /\bi['’]ll\b/gi, rep: "I will" },
+        { reg: /\byou['’]ll\b/gi, rep: "you will" },
+        { reg: /\bhe['’]ll\b/gi, rep: "he will" },
+        { reg: /\bshe['’]ll\b/gi, rep: "she will" },
+        { reg: /\bwe['’]ll\b/gi, rep: "we will" },
+        { reg: /\bthey['’]ll\b/gi, rep: "they will" },
+        { reg: /\bi['’]d\b/gi, rep: "I would" },
+        { reg: /\byou['’]d\b/gi, rep: "you would" },
+        { reg: /\bhe['’]d\b/gi, rep: "he would" },
+        { reg: /\bshe['’]d\b/gi, rep: "she would" },
+        { reg: /\bwe['’]d\b/gi, rep: "we would" },
+        { reg: /\bthey['’]d\b/gi, rep: "they would" },
+        { reg: /\blet['’]s\b/gi, rep: "let us" }
+      ];
+
+      let expanded = text;
+      contractionsMap.forEach(({ reg, rep }) => {
+        expanded = expanded.replace(reg, rep);
+      });
+      // アポストロフィ自体の残りを除去
+      expanded = expanded.replace(/['’]/g, "");
+      return expanded;
+    }
+
     // 英字 ➔ メルニクス語変換
     function convertEnglishToMelnics(englishText) {
       let result = "";
@@ -196,7 +243,10 @@
             englishText = englishText.split(ph).join(noun);
           });
 
-          // 英文をメルニクス語に変換
+          // 短縮形（Don't, I'm等）を「Do not」「I am」等の完全形に展開
+          englishText = expandContractions(englishText);
+
+          // 英語をメルニクス語に変換
           const melnicsResult = convertEnglishToMelnics(englishText);
 
           document.getElementById("outputText").innerText = melnicsResult;
