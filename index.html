@@ -219,37 +219,46 @@
         return;
       }
 
+      // 入力が固有名詞単体の場合、APIを通さずそのまま返す
+      for (const noun of specialProperNouns) {
+        if (rawInput === noun) {
+          document.getElementById("outputText").innerText = noun;
+          document.getElementById("subText").innerText = `中間英文: ${noun}`;
+          return;
+        }
+      }
+
       document.getElementById("outputText").innerText = "翻訳＆変換中...";
       document.getElementById("subText").innerText = "英文を取得中...";
 
       try {
-        // 1. 固有名詞の保護処理（翻訳前にプレースホルダーに置換）
+        // 英訳APIで崩れない安全なアルファベット記号で一時保護
         let processText = rawInput;
         const placeholders = [];
         specialProperNouns.forEach((noun, idx) => {
-          const ph = `__NOUN_${idx}__`;
+          const ph = ` XNOUN${idx}X `; // APIに壊されない英記号パターン
           if (processText.includes(noun)) {
-            placeholders.push({ ph, noun });
+            placeholders.push({ ph: ph.trim(), reg: new RegExp(`XNOUN${idx}X`, 'gi'), noun });
             processText = processText.split(noun).join(ph);
           }
         });
 
-        // 2. 翻訳API実行（日本語 -> 英語）
+        // 翻訳API実行（日本語 -> 英語）
         const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(processText)}&langpair=ja|en`);
         const data = await response.json();
 
         if (data && data.responseData && data.responseData.translatedText) {
           let englishText = data.responseData.translatedText;
 
-          // 3. プレースホルダーを元の日本語固有名詞に復元
-          placeholders.forEach(({ ph, noun }) => {
-            englishText = englishText.split(ph).join(noun);
+          // 保護した記号を元の日本語固有名詞に確実に復元
+          placeholders.forEach(({ reg, noun }) => {
+            englishText = englishText.replace(reg, noun);
           });
 
-          // 4. 短縮形（Don't, I'm等）を「Do not」「I am」等の完全形に展開
+          // 短縮形（Don't, I'm等）を展開
           englishText = expandContractions(englishText);
 
-          // 5. 英語をメルニクス語に変換（固有名詞はそのままカタカナで通過）
+          // 英語をメルニクス語に変換
           const melnicsResult = convertEnglishToMelnics(englishText);
 
           document.getElementById("outputText").innerText = melnicsResult;
