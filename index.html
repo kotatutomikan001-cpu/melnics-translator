@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>メルニクス語 相互変換＆自動翻訳ツール</title>
+  <style>
+    body { font-family: sans-serif; max-width: 650px; margin: 40px auto; padding: 0 20px; line-height: 1.6; }
+    textarea { width: 100%; height: 100px; font-size: 16px; margin-bottom: 10px; box-sizing: border-box; }
+    .btn-group { margin-bottom: 20px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin-right: 10px; }
+    .result-box { background: #f4f4f9; border: 1px solid #ccc; padding: 15px; border-radius: 5px; margin-bottom: 15px; }
+    .result-title { font-weight: bold; font-size: 14px; color: #555; margin-bottom: 5px; }
+    .result-content { font-size: 18px; font-weight: bold; white-space: pre-wrap; word-break: break-all; }
+    .translation-content { font-size: 16px; color: #1a0dab; white-space: pre-wrap; word-break: break-all; }
+  </style>
+</head>
+<body>
+
+  <h1>メルニクス語 相互変換＆自動翻訳ツール</h1>
+
+  <label for="inputText">テキストを入力してください：</label>
+  <textarea id="inputText" placeholder="例: メルディ ヒアデス セレスティア インフェリア"></textarea>
+
+  <div class="btn-group">
+    <button onclick="encodeToMelnics()">アルファベット ➔ メルニクス語</button>
+    <button onclick="decodeFromMelnics()">メルニクス語 ➔ アルファベット（日本語訳付き）</button>
+  </div>
+
+  <div class="result-box">
+    <div class="result-title">変換結果：</div>
+    <div id="outputText" class="result-content">-</div>
+  </div>
+
+  <div class="result-box">
+    <div class="result-title">日本語訳：</div>
+    <div id="translationText" class="translation-content">-</div>
+  </div>
+
+  <script>
+    // 固有名詞リスト（アルファベットに変換せずそのまま日本語で残す単語）
+    const specialProperNouns = [
+      'メルディ',
+      'ヒアデス',
+      'セレスティア',
+      'インフェリア'
+    ];
+
+    // 基本対応表（アルファベット -> メルニクス語）
+    const baseMap = {
+      'A': 'エ',   'B': 'ブ',   'C': 'ワ',   'D': 'ﾄﾞｩ', 'E': 'ン',
+      'F': 'フ',   'G': 'グ',   'H': 'ア',   'I': 'ウ',   'J': 'ユ',
+      'K': 'ク',   'L': 'ル',   'M': 'ﾄｩ',  'N': 'ム',   'O': 'イ',
+      'P': 'プ',   'Q': 'ヨ',   'R': 'ﾃﾞｨ', 'S': 'ス',   'T': 'ﾃｨ',
+      'U': 'オ',   'V': 'ヌ',   'W': 'バ',   'X': 'ズ',   'Y': 'ヤ',
+      'Z': 'ツ'
+    };
+
+    // アルファベット -> カタカナ辞書
+    const alphaToMelnics = {};
+    for (const [k, v] of Object.entries(baseMap)) {
+      alphaToMelnics[k] = v.normalize('NFKC');
+    }
+
+    // カタカナ -> アルファベット逆引きテーブル
+    const melnicsToAlpha = [];
+
+    // 1. 公式パターンの登録
+    for (const [letter, kana] of Object.entries(baseMap)) {
+      melnicsToAlpha.push({ kana: kana.normalize('NFKC'), letter });
+    }
+
+    // 2. 表記揺れ・ゆらぎパターンの登録
+    const extraPatterns = [
+      { kana: 'ドゥ', letter: 'D' },
+      { kana: 'ディ', letter: 'R' },
+      { kana: 'トゥ', letter: 'M' },
+      { kana: 'ティ', letter: 'T' },
+      { kana: 'ィ', letter: 'O' },
+      { kana: 'イ', letter: 'O' },
+      { kana: 'エ', letter: 'A' },
+      { kana: 'ェ', letter: 'A' },
+      { kana: 'オ', letter: 'U' },
+      { kana: 'ォ', letter: 'U' },
+      { kana: 'ウ', letter: 'I' },
+      { kana: 'ゥ', letter: 'I' },
+      { kana: 'ア', letter: 'H' },
+      { kana: 'ァ', letter: 'H' }
+    ];
+
+    for (const item of extraPatterns) {
+      melnicsToAlpha.push({ kana: item.kana.normalize('NFKC'), letter: item.letter });
+    }
+
+    // 長い音節パターンから優先的にマッチング（文字数の長い順）
+    melnicsToAlpha.sort((a, b) => b.kana.length - a.kana.length);
+
+    // アルファベット ➔ メルニクス語
+    function encodeToMelnics() {
+      try {
+        let input = document.getElementById("inputText").value.normalize('NFKC').toUpperCase();
+        let result = "";
+
+        for (let char of input) {
+          if (alphaToMelnics[char]) {
+            result += alphaToMelnics[char];
+          } else {
+            result += char;
+          }
+        }
+
+        document.getElementById("outputText").innerText = result;
+        document.getElementById("translationText").innerText = "-";
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // 文脈に応じた長音符（ー）の柔軟な前処理
+    function resolveLongVowelsContextually(text) {
+      let chars = Array.from(text);
+      let resolved = "";
+
+      for (let i = 0; i < chars.length; i++) {
+        if (chars[i] === 'ー' || chars[i] === '―') {
+          if (resolved.endsWith('イ') || resolved.endsWith('ィ') || resolved.endsWith('ｲ') || resolved.endsWith('ｨ')) {
+            resolved += 'イ';
+          } else if (resolved.endsWith('ティ') || resolved.endsWith('ﾃｨ') || resolved.endsWith('ディ') || resolved.endsWith('ﾃﾞｨ')) {
+            resolved += 'イ';
+          } else if (resolved.endsWith('ヤ') || resolved.endsWith('バ') || resolved.endsWith('ア') || resolved.endsWith('ァ') || resolved.endsWith('ウ') || resolved.endsWith('ｳ') || resolved.endsWith('オ') || resolved.endsWith('ｵ')) {
+            continue;
+          } else if (resolved.endsWith('エ') || resolved.endsWith('ェ')) {
+            resolved += 'エ';
+          } else {
+            continue;
+          }
+        } else {
+          resolved += chars[i];
+        }
+      }
+      return resolved;
+    }
+
+    // 文全体の「最初の一文字だけ大文字、それ以降はすべて小文字」に整形する関数（日本語部分はそのまま維持）
+    function formatSentenceCase(str) {
+      if (!str || str.length === 0) return str;
+      const lower = str.toLowerCase();
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    }
+
+    // 外部翻訳処理（非同期独立）
+    function fetchJapaneseTranslation(englishText) {
+      if (!englishText || englishText.trim().length === 0) {
+        document.getElementById("translationText").innerText = "-";
+        return;
+      }
+
+      document.getElementById("translationText").innerText = "翻訳中...";
+
+      fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(englishText)}&langpair=en|ja`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.responseData && data.responseData.translatedText) {
+            document.getElementById("translationText").innerText = data.responseData.translatedText;
+          } else {
+            document.getElementById("translationText").innerText = "（翻訳を取得できませんでした）";
+          }
+        })
+        .catch(err => {
+          console.warn("Translation API error:", err);
+          document.getElementById("translationText").innerText = "（オフラインまたは通信エラーのため翻訳スキップ）";
+        });
+    }
+
+    // メルニクス語 ➔ アルファベット
+    function decodeFromMelnics() {
+      try {
+        let rawInput = document.getElementById("inputText").value.normalize('NFKC');
+        let input = resolveLongVowelsContextually(rawInput);
+        let rawResult = "";
+        let i = 0;
+
+        while (i < input.length) {
+          let matched = false;
+
+          // 1. 固有名詞リストに該当する場合は、変換せずにそのまま日本語を出力
+          for (const noun of specialProperNouns) {
+            const normalizedNoun = noun.normalize('NFKC');
+            if (input.startsWith(normalizedNoun, i)) {
+              rawResult += noun; // そのままの日本語単語を保持
+              i += normalizedNoun.length;
+              matched = true;
+              break;
+            }
+          }
+
+          // 2. 固有名詞でない場合、通常の音節変換を実施
+          if (!matched) {
+            for (const item of melnicsToAlpha) {
+              if (input.startsWith(item.kana, i)) {
+                rawResult += item.letter;
+                i += item.kana.length;
+                matched = true;
+                break;
+              }
+            }
+          }
+
+          // 3. どちらにもマッチしない文字（記号やスペース等）
+          if (!matched) {
+            rawResult += input[i];
+            i++;
+          }
+        }
+
+        // アルファベット部分の整形（先頭大文字＋小文字）
+        const formattedResult = formatSentenceCase(rawResult);
+
+        // 1. 整形後の結果を表示
+        document.getElementById("outputText").innerText = formattedResult;
+
+        // 2. 翻訳を呼び出す
+        fetchJapaneseTranslation(formattedResult);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  </script>
+
+</body>
+</html>
