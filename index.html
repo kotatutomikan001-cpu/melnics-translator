@@ -95,7 +95,7 @@
       return text.replace(/[ッﾂ]+(?=[\!\?！？\s　]|$)/g, '');
     }
 
-    // 長音補正
+    // 長音補正（解読時）
     function resolveLongVowelsContextually(text) {
       let chars = Array.from(text);
       let resolved = "";
@@ -168,7 +168,6 @@
       contractionsMap.forEach(({ reg, rep }) => {
         expanded = expanded.replace(reg, rep);
       });
-      // アポストロフィ自体の残りを除去
       expanded = expanded.replace(/['’]/g, "");
       return expanded;
     }
@@ -204,6 +203,10 @@
           i++;
         }
       }
+
+      // 「イイ」「イィ」「ｲｲ」「ｲｨ」のようにイが重なる部分を長音「イー」に置換
+      result = result.replace(/(イ|ィ|ｲ|ｨ){2,}/g, "イー");
+
       return result;
     }
 
