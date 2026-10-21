@@ -20,7 +20,7 @@
   <h1>メルニクス語 相互翻訳ツール</h1>
 
   <label for="inputText">テキストを入力してください：</label>
-  <textarea id="inputText" placeholder="日本語例: 邪魔をするな！&#10;メルニクス語例: ティー　グンティ　ウム　ティアン　バエヤー！"></textarea>
+  <textarea id="inputText" placeholder="日本語例: メルディ、邪魔をするな！&#10;メルニクス語例: メルディ　ティー　グンティ　ウム　ティアン　バエヤー！"></textarea>
 
   <div class="btn-group">
     <button onclick="encodeFromJapanese()">日本語 ➔ メルニクス語（英訳経由）</button>
@@ -38,7 +38,7 @@
   </div>
 
   <script>
-    // 固有名詞リスト（そのまま保持する単語）
+    // 固有名詞リスト（英訳せずそのまま保持する単語）
     const specialProperNouns = [
       'メルディ',
       'ヒアデス',
@@ -223,7 +223,7 @@
       document.getElementById("subText").innerText = "英文を取得中...";
 
       try {
-        // 固有名詞の保護処理
+        // 1. 固有名詞の保護処理（翻訳前にプレースホルダーに置換）
         let processText = rawInput;
         const placeholders = [];
         specialProperNouns.forEach((noun, idx) => {
@@ -234,22 +234,22 @@
           }
         });
 
-        // 翻訳API実行（日本語 -> 英語）
+        // 2. 翻訳API実行（日本語 -> 英語）
         const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(processText)}&langpair=ja|en`);
         const data = await response.json();
 
         if (data && data.responseData && data.responseData.translatedText) {
           let englishText = data.responseData.translatedText;
 
-          // プレースホルダーを元の日本語固有名詞に戻す
+          // 3. プレースホルダーを元の日本語固有名詞に復元
           placeholders.forEach(({ ph, noun }) => {
             englishText = englishText.split(ph).join(noun);
           });
 
-          // 短縮形（Don't, I'm等）を「Do not」「I am」等の完全形に展開
+          // 4. 短縮形（Don't, I'm等）を「Do not」「I am」等の完全形に展開
           englishText = expandContractions(englishText);
 
-          // 英語をメルニクス語に変換
+          // 5. 英語をメルニクス語に変換（固有名詞はそのままカタカナで通過）
           const melnicsResult = convertEnglishToMelnics(englishText);
 
           document.getElementById("outputText").innerText = melnicsResult;
